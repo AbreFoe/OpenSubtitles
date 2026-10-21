@@ -1,0 +1,9 @@
+yt-dlp[default]
+flask
+numpy
+requests
+faster-whisper
+pywebview
+
+# Распознавание на видеокарте NVIDIA (необязательно, ~1,3 ГБ):
+# pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12>=9,<10"

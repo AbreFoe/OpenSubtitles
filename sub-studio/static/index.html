@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sub Studio</title>
+<link rel="icon" href="/static/icon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,700;1,400;1,700&family=Carrois+Gothic+SC&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">Sub Studio</div>
+  <div class="menu-wrap">
+    <button id="btnOpen" class="primary">Открыть видео</button>
+    <button id="btnRecent" title="Недавние и скачанные">▾</button>
+    <div id="recentMenu" class="menu" hidden></div>
+  </div>
+  <span id="fileName" class="file-name">Видео не открыто</span>
+  <div class="spacer"></div>
+  <div class="seg" id="fieldToggle" data-action="toggleField" title="Какой текст показывать на видео и выгружать">
+    <button data-field="text" class="on">Оригинал</button>
+    <button data-field="tr">Перевод</button>
+  </div>
+  <div class="menu-wrap">
+    <button id="btnImport">Импорт ▾</button>
+    <div id="importMenu" class="menu" hidden>
+      <button data-import="text">SRT/VTT как оригинал (заменить всё)</button>
+      <button data-import="tr">SRT/VTT в колонку «перевод» (по таймингу)</button>
+    </div>
+  </div>
+  <button id="btnSrt" title="Обычные субтитры, без стилей и позиций">Экспорт SRT</button>
+  <button id="btnYtt" class="primary" title="Формат YouTube: цвета, шрифты, обводка, позиция">Экспорт YTT</button>
+  <button id="btnBurn" data-action="burn" title="Вшить субтитры прямо в картинку видео (хардсаб)">🔥 Вшить в видео</button>
+  <button id="btnKeys" data-action="help" title="Горячие клавиши — список и настройка">⌨ Клавиши</button>
+  <span id="saveState" class="muted small"></span>
+  <input type="file" id="fileInput" accept=".srt,.vtt,.txt" hidden>
+</header>
+
+<main>
+  <section class="stage">
+    <div id="videoBox" class="video-box">
+      <video id="video" preload="auto"></video>
+      <div id="overlay" class="overlay"></div>
+      <div id="emptyHint" class="empty-hint">
+        <p>Открой видео, которое скачал через YT Reaper.</p>
+        <p class="muted small">Субтитры сохраняются сами — рядом с видео, в файл <code>.substudio.json</code>.</p>
+      </div>
+    </div>
+    <div class="transport">
+      <button id="btnPlay" data-action="play" title="Пуск / пауза">▶</button>
+      <span id="timeNow" class="mono">0:00.0</span><span class="muted mono">/</span><span id="timeDur" class="muted mono">0:00.0</span>
+      <select id="speed" title="Скорость">
+        <option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option>
+      </select>
+      <input type="range" id="volume" min="0" max="1" step="0.05" value="1" title="Громкость">
+      <label class="chk" data-action="follow" title="Во время воспроизведения карточка редактирования и список сами переключаются на строку, которая сейчас на экране"><input type="checkbox" id="follow" checked> Карточка следует за видео</label>
+      <label class="chk" title="Начал печатать во время воспроизведения — видео встаёт на паузу. Esc — выйти из поля, Ctrl+Пробел — продолжить"><input type="checkbox" id="pauseOnType" checked> Пауза, когда печатаю</label>
+      <div class="spacer"></div>
+      <span class="muted small">Держи <kbd>Alt</kbd> — подсказки клавиш на кнопках · <kbd>F1</kbd> — все клавиши</span>
+    </div>
+  </section>
+
+  <aside class="side">
+    <nav class="tabs">
+      <button data-tab="cues" class="on">Субтитры</button>
+      <button data-tab="styles">Стили</button>
+      <button data-tab="translate">Перевод</button>
+      <button data-tab="tools">Инструменты</button>
+    </nav>
+
+    <div class="tab" id="tab-cues">
+      <div id="editor" class="editor card">
+        <div class="ed-head">
+          <span id="edNum" class="small"></span>
+          <span id="edMode" class="badge" hidden></span>
+        </div>
+        <div class="row-fields">
+          <label>Начало <input id="edStart" class="mono time-input"></label>
+          <label>Конец <input id="edEnd" class="mono time-input"></label>
+          <span id="edInfo" class="muted small"></span>
+        </div>
+        <div class="fmt-bar">
+          <button data-wrap="b" data-action="bold" title="Жирный"><b>Ж</b></button>
+          <button data-wrap="i" data-action="italic" title="Курсив"><i>К</i></button>
+          <button data-wrap="u" data-action="underline" title="Подчёркнутый"><u>Ч</u></button>
+          <input type="color" id="wrapColor" value="#ffd400" title="Цвет выделенного куска">
+          <button data-wrap="font" title="Покрасить выделенный текст">Цвет</button>
+          <div class="spacer"></div>
+          <select id="edStyle" title="Стиль строки"></select>
+        </div>
+        <textarea id="edText" rows="2" placeholder="Оригинал"></textarea>
+        <textarea id="edTr" rows="2" placeholder="Перевод"></textarea>
+        <div class="row-fields">
+          <span id="edPos" class="muted small"></span>
+          <button id="edPosReset" class="small-btn">Сбросить позицию</button>
+          <button id="edPosToStyle" class="small-btn">Сделать позицией стиля</button>
+        </div>
+        <div class="row-fields actions">
+          <button id="btnAdd" class="kbd-always" data-action="add" title="Новая строка с позиции курсора">+ Новая</button>
+          <button id="btnSplit" class="kbd-always" data-action="split" title="Разрезать строку по курсору видео (или по курсору в тексте)">Разрезать</button>
+          <button id="btnMerge" class="kbd-always" data-action="merge" title="Склеить со следующей строкой">Склеить</button>
+          <button id="btnPlayCue" class="kbd-always" data-action="playCue" title="Проиграть только эту строку">▶ Строку</button>
+          <div class="spacer"></div>
+          <button id="btnDelete" class="danger kbd-always" data-action="delete" title="Удалить строку">Удалить</button>
+        </div>
+      </div>
+      <div class="list-head">
+        <span id="cueCount" class="muted small"></span>
+        <div class="spacer"></div>
+        <button id="btnNextProblem" class="small-btn" data-action="nextProblem" title="Перейти к следующей проблемной строке">⚠ <span id="problemCount">0</span></button>
+      </div>
+      <div id="list" class="list"></div>
+    </div>
+
+    <div class="tab" id="tab-styles" hidden>
+      <div class="card">
+        <div class="row-fields">
+          <select id="styleSel" class="grow"></select>
+          <button id="styleNew" class="small-btn">Новый</button>
+          <button id="styleDup" class="small-btn">Копия</button>
+          <button id="styleDel" class="small-btn danger">Удалить</button>
+        </div>
+        <div class="form">
+          <label>Название <input id="stName"></label>
+          <label>Шрифт <select id="stFont"></select></label>
+          <label>Размер <span class="pair"><input type="range" id="stSize" min="50" max="300" step="5"><output id="stSizeOut"></output></span></label>
+          <label>Текст <span class="pair"><input type="color" id="stColor"><input type="range" id="stOpacity" min="0" max="100"><output id="stOpacityOut"></output></span></label>
+          <label>Фон <span class="pair"><input type="color" id="stBg"><input type="range" id="stBgOpacity" min="0" max="100"><output id="stBgOpacityOut"></output></span></label>
+          <label>Обводка <span class="pair"><select id="stEdge"></select><input type="color" id="stEdgeColor"></span></label>
+          <label>Начертание <span class="pair">
+            <label class="chk"><input type="checkbox" id="stBold"> Жирный</label>
+            <label class="chk"><input type="checkbox" id="stItalic"> Курсив</label>
+            <label class="chk"><input type="checkbox" id="stUnderline"> Подчёркн.</label>
+          </span></label>
+          <label>Выравнивание <select id="stAlign">
+            <option value="0">По левому краю</option><option value="2">По центру</option><option value="1">По правому краю</option>
+          </select></label>
+          <div class="pos-block">
+            <div>
+              <div class="muted small">Точка привязки</div>
+              <div id="anchorGrid" class="anchor-grid"></div>
+            </div>
+            <div class="grow">
+              <label>По горизонтали <span class="pair"><input type="range" id="stAh" min="0" max="100"><output id="stAhOut"></output></span></label>
+              <label>По вертикали <span class="pair"><input type="range" id="stAv" min="0" max="100"><output id="stAvOut"></output></span></label>
+            </div>
+          </div>
+        </div>
+        <div class="row-fields">
+          <span class="muted small">Применить стиль к:</span>
+          <button id="applyCue" class="small-btn">выбранной строке</button>
+          <button id="applyRange" class="small-btn">выделенному участку</button>
+          <button id="applyAll" class="small-btn">всем</button>
+        </div>
+      </div>
+      <p class="muted small note">Предпросмотр на видео приблизительный — YouTube рисует сабы своим плеером. Стили и позиция
+        работают только в <b>YTT</b>; в SRT YouTube понимает лишь жирный/курсив/подчёркивание. В мобильном приложении YouTube
+        часть оформления может не показываться.</p>
+    </div>
+
+    <div class="tab" id="tab-translate" hidden>
+      <div class="card form">
+        <label>С языка <select id="trSrc"></select></label>
+        <label>На язык <select id="trTgt"></select></label>
+        <label>Что переводить <select id="trScope">
+          <option value="all">Все строки</option>
+          <option value="empty">Только где перевода ещё нет</option>
+          <option value="range">Выделенный участок на дорожке</option>
+          <option value="cue">Только выбранную строку</option>
+        </select></label>
+        <label class="col">Глоссарий — как переводить имена и словечки автора (по одному на строку: <code>оригинал = перевод</code>)
+          <textarea id="glossary" rows="5" placeholder="Пятёрка = Pyaterka&#10;кринж = cringe"></textarea>
+        </label>
+        <button id="btnTranslate" class="primary">Перевести</button>
+        <div id="trProgress" class="progress" hidden><div></div></div>
+      </div>
+      <p class="muted small note">Переводит Google Translate (нужен интернет). Перевод кладётся в колонку «Перевод» — оригинал
+        не трогается. Переключатель «Оригинал / Перевод» вверху выбирает, что показывать и выгружать.</p>
+    </div>
+
+    <div class="tab" id="tab-tools" hidden>
+      <div class="card form">
+        <div class="h">Проверка читаемости</div>
+        <label>Макс. символов в секунду <input type="number" id="limCps" min="5" max="40" step="1"></label>
+        <label>Макс. символов в строке <input type="number" id="limLine" min="20" max="80" step="1"></label>
+        <p class="muted small">Строки, которые слишком быстро мелькают, слишком длинные, накладываются друг на друга или пустые,
+          помечаются ⚠ в списке.</p>
+      </div>
+      <div class="card form">
+        <div class="h">Сдвиг таймингов</div>
+        <label>На сколько секунд (минус — раньше) <input type="number" id="shiftBy" step="0.1" value="0.5"></label>
+        <div class="row-fields">
+          <button id="shiftAll" class="small-btn">Все строки</button>
+          <button id="shiftAfter" class="small-btn">Строки после курсора</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="h">Горячие клавиши</div>
+        <p class="small">Все клавиши можно посмотреть и переназначить в отдельном окне. Подержи <kbd>Alt</kbd> — подсказки
+          появятся прямо на кнопках.</p>
+        <button id="btnKeys2" data-action="help">Открыть список клавиш</button>
+      </div>
+      <div class="card">
+        <div class="h">Как загрузить в YouTube</div>
+        <p class="small">YouTube Studio → Субтитры → видео → Добавить язык → Добавить → <b>Загрузить файл</b> →
+          «С таймингом» → выбери <code>.ytt</code> или <code>.srt</code>.</p>
+      </div>
+    </div>
+  </aside>
+
+  <section class="timeline">
+    <div class="tl-bar">
+      <button id="zoomOut" class="small-btn" title="Ctrl+колесо">−</button>
+      <button id="zoomIn" class="small-btn">+</button>
+      <button id="zoomFit" class="small-btn">Весь ролик</button>
+      <span id="selInfo" class="muted small">Протяни мышкой по дорожке, чтобы выделить участок</span>
+      <button id="btnPlaySel" class="small-btn" disabled>▶ Участок</button>
+      <div class="spacer"></div>
+      <label class="small">Язык речи <select id="asrLang"></select></label>
+      <label class="small" title="Чем больше модель, тем точнее, но медленнее. Скачивается один раз.">Модель <select id="asrModel">
+        <option value="base">base — быстро, грубо</option>
+        <option value="small">small — баланс</option>
+        <option value="medium">medium — точнее</option>
+        <option value="large-v3-turbo">large-v3-turbo — лучшая</option>
+      </select></label>
+      <span id="asrModelState" class="muted small"></span>
+      <button id="btnAsrSel" class="primary" disabled>🎙 Распознать участок</button>
+      <button id="btnAsrAll">Распознать всё</button>
+      <div id="asrProgress" class="progress inline" hidden><div></div></div>
+    </div>
+    <canvas id="tl"></canvas>
+  </section>
+</main>
+
+<div id="keysModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <b>Горячие клавиши</b>
+      <div class="spacer"></div>
+      <button id="keysReset" class="small-btn">Сбросить по умолчанию</button>
+      <button id="keysClose" class="small-btn" title="Esc">✕</button>
+    </div>
+    <p class="muted small">«+» — назначить свою комбинацию (нажми её, Esc — отмена), «×» — убрать. Клавиши без Ctrl/Alt
+      срабатывают, только когда курсор не в поле ввода. Если комбинация уже занята, она переедет сюда.</p>
+    <div id="keysBody" class="keys-body"></div>
+  </div>
+</div>
+
+<div id="burnModal" class="modal" hidden>
+  <div class="modal-box burn-box">
+    <div class="modal-head">
+      <b>Вшить субтитры в видео</b>
+      <div class="spacer"></div>
+      <button id="burnClose" class="small-btn" title="Esc">✕</button>
+    </div>
+    <p class="muted small">Сабы впечатываются прямо в картинку — со стилями, цветами и позициями, как в предпросмотре.
+      Получится новый файл рядом с исходным, оригинал не трогается. Выключить такие сабы зрителю будет нельзя.</p>
+    <div class="form">
+      <label>Текст <span id="burnField" class="small"></span></label>
+      <label>Что вшить <select id="burnScope">
+        <option value="all">Всё видео</option>
+        <option value="range">Только выделенный участок — для проверки</option>
+      </select></label>
+      <label>Качество <select id="burnQuality">
+        <option value="high">Высокое — почти как оригинал, файл больше</option>
+        <option value="normal" selected>Обычное — хороший баланс</option>
+        <option value="fast">Быстро — файл меньше, качество ниже</option>
+      </select></label>
+      <label>Чем кодировать <select id="burnEncoder">
+        <option value="nvenc">Видеокарта NVIDIA — быстро</option>
+        <option value="x264">Процессор — медленнее, чуть чище картинка</option>
+      </select></label>
+      <label>Файл <span id="burnOut" class="small mono"></span></label>
+    </div>
+    <p id="burnWarn" class="small warn-text" hidden></p>
+    <div id="burnProgress" class="progress" hidden><div></div></div>
+    <p id="burnMsg" class="small muted"></p>
+    <div class="row-fields">
+      <div class="spacer"></div>
+      <button id="burnCancel" hidden>Остановить</button>
+      <button id="burnReveal" hidden>Показать в папке</button>
+      <button id="burnStart" class="primary">Вшить</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

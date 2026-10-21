@@ -1,0 +1,15 @@
+# личные настройки и история
+settings.json
+sub-studio/recent.json
+
+# то, что программы создают сами при работе
+sub-studio/cache/
+sub-studio/fonts/
+sub-studio/webview-data/
+sub-studio/*.log
+__pycache__/
+*.pyc
+
+# проекты и результаты, если кто-то положит видео прямо в папку
+*.substudio.json
+*.hardsub*.mp4
